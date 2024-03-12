@@ -5,7 +5,7 @@ pipeline{
         nodejs 'node16'
     }
     environment {
-        SCANNER_HOME=tool 'sonar-scanner'
+        SCANNER_HOME=tool 'sonar-token'
     }
     stages {
         stage('clean workspace'){
@@ -15,21 +15,20 @@ pipeline{
         }
         stage('Checkout from Git'){
             steps{
-                git branch: 'main', url: 'https://github.com/vijaygiduthuri/Zomato.git'
+                git branch: 'main', url: 'https://github.com/Yaswanth5951/Zomato.git'
             }
         }
-        stage("Sonarqube Analysis "){
+        stage('Sonarqube Analysis'){
             steps{
-                withSonarQubeEnv('sonar-server') {
-                    sh ''' $SCANNER_HOME/bin/sonar-scanner -Dsonar.projectName=zomato \
-                    -Dsonar.projectKey=zomato '''
+                withSonarQubeEnv('SONAR_TOKEN') {
+                    sh ''' $SCANNER_HOME/bin/sonar-scanner -Dsonar.organization=zomato1 -Dsonar.projectKey=zomato1_order '''
                 }
             }
-        }
-        stage("quality gate"){
+            }
+            stage("quality gate"){
            steps {
                 script {
-                    waitForQualityGate abortPipeline: false, credentialsId: 'Sonar-token' 
+                    waitForQualityGate abortPipeline: false, credentialsId: 'SONAR-TOKEN' 
                 }
             } 
         }
@@ -38,37 +37,28 @@ pipeline{
                 sh "npm install"
             }
         }
-        stage('OWASP FS SCAN') {
-            steps {
-                dependencyCheck additionalArguments: '--scan ./ --disableYarnAudit --disableNodeAudit', odcInstallation: 'DP-Check'
-                dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
-            }
-        }
-        stage('TRIVY FS SCAN') {
-            steps {
-                sh "trivy fs . > trivyfs.txt"
-            }
-        }
         stage("Docker Build & Push"){
             steps{
                 script{
-                   withDockerRegistry(credentialsId: 'docker', toolName: 'docker'){   
+                   withDockerRegistry(credentialsId: 'docker', toolName: 'docker'){ 
+                       sh "docker login -u yaswanth59 -p Yaswanth@123"
                        sh "docker build -t zomato ."
-                       sh "docker tag zomato vijaygiduthuri/zomato:latest "
-                       sh "docker push vijaygiduthuri/zomato:latest "
-                    }
+                       sh "docker tag zomato yaswanth59/zomato:latest "
+                       sh "docker push yaswanth59/zomato:latest "
+                   }
                 }
             }
         }
-        stage("TRIVY"){
+        
+         stage("TRIVY"){
             steps{
-                sh "trivy image vijaygiduthuri/zomato:latest > trivy.txt" 
+                sh "trivy image yaswanth59/zomato:latest > trivy.txt" 
             }
         }
         stage('Deploy to container'){
             steps{
-                sh 'docker run -d --name zomato -p 3000:3000 vijaygiduthuri/zomato:latest'
+                sh 'docker run -d --name zomato -p 3000:3000 yaswanth59/zomato:latest'
             }
+         }
         }
     }
-}
